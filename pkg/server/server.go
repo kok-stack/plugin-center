@@ -57,6 +57,7 @@ func NewCommand() (*cobra.Command, context.Context, context.CancelFunc) {
 	command.PersistentFlags().String("PluginDir", "plugins", "plugin dir path")
 	command.PersistentFlags().String("Port", "8088", "port")
 	command.PersistentFlags().Bool("Debug", true, "debug mode")
+	command.PersistentFlags().Bool("InKube", false, "plugin center in kubernetes")
 	err := viper.BindPFlags(command.PersistentFlags())
 	if err != nil {
 		panic(err.Error())
@@ -100,6 +101,7 @@ func startServer(ctx context.Context, config *ApplicationConfig) error {
 			if _, err := ctx.Writer.WriteString("未找到文件模板,传入的dir可能存在错误"); err != nil {
 				panic(err)
 			}
+			return
 		}
 		if err = t.ExecuteTemplate(ctx.Writer, filename, cls); err != nil {
 			panic(err)
@@ -118,13 +120,24 @@ func startServer(ctx context.Context, config *ApplicationConfig) error {
 }
 
 func initClient(ctx context.Context, config *ApplicationConfig) (*rest.RESTClient, *kubernetes.Clientset, error) {
-	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
-	configOverrides := &clientcmd.ConfigOverrides{}
+	var clientConfig *rest.Config
+	var err error
+	if config.InKube {
+		loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+		configOverrides := &clientcmd.ConfigOverrides{}
 
-	kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
-	clientConfig, err := kubeConfig.ClientConfig()
-	if err != nil {
-		return nil, nil, err
+		kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
+		clientConfig, err = kubeConfig.ClientConfig()
+		if err != nil {
+			return nil, nil, err
+		}
+	} else {
+		//for test
+
+		clientConfig, err = clientcmd.BuildConfigFromFlags("", filepath.Join(os.Getenv("HOME"), ".kube", "config"))
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 	newForConfig, err := kubernetes.NewForConfig(clientConfig)
 	if err != nil {
@@ -220,4 +233,5 @@ type ApplicationConfig struct {
 	PluginDir string
 	Port      string
 	Debug     bool
+	InKube    bool
 }

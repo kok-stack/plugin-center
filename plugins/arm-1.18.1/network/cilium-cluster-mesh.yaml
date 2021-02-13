@@ -1,0 +1,22 @@
+apiVersion: cluster.kok.tanx/v1
+kind: MultiClusterPlugin
+metadata:
+  name: test
+  namespace: test
+spec:
+  clusters:
+    - test
+  install:
+    containers:
+      - command:
+          - '/main'
+        image: ccr.ccs.tencentyun.com/k8sonk8s/cilium-cluster-mesh-installer:v1-arm64
+        name: test
+  uninstall:
+    containers:
+      - command:
+          - 'cat'
+          - '/etc/cluster/test/config'
+        image: ubuntu:latest
+        name: test
+
